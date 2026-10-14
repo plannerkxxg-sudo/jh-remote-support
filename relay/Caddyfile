@@ -1,0 +1,3 @@
+{$SUPPORT_DOMAIN} {
+    reverse_proxy relay:8765
+}

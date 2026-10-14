@@ -1,0 +1,25 @@
+services:
+  relay:
+    build: .
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 1.0
+    environment:
+      PUBLIC_BASE_URL: https://${SUPPORT_DOMAIN:?Set SUPPORT_DOMAIN in .env}
+    networks: [support]
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      SUPPORT_DOMAIN: ${SUPPORT_DOMAIN:?Set SUPPORT_DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [support]
+networks:
+  support:
+volumes:
+  caddy_data:
+  caddy_config:
