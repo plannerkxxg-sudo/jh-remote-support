@@ -12,7 +12,7 @@ from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
 from webapp import HttpApp
 
-ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+CODE_LENGTH = 6
 WAIT_TTL = 600
 ACTIVE_TTL = 7200
 PENDING_TTL = 60
@@ -109,9 +109,9 @@ class Relay:
             if self.limited(self.attempts, (ip, "create"), 10, 60):
                 await self.error(ws, "잠시 후 다시 시도하세요.")
                 return
-            code = "".join(secrets.choice(ALPHABET) for _ in range(12))
+            code = f"{secrets.randbelow(1_000_000):06d}"
             while code in self.rooms:
-                code = "".join(secrets.choice(ALPHABET) for _ in range(12))
+                code = f"{secrets.randbelow(1_000_000):06d}"
             name = msg.get("name")
             if not isinstance(name, str) or not name.strip() or len(name) > 40:
                 await self.error(ws, "지원자 이름을 1~40자로 입력하세요.")
@@ -127,6 +127,9 @@ class Relay:
                 await self.error(ws, "잠시 후 다시 시도하세요.")
                 return
             code = str(msg.get("code", "")).replace("-", "").replace(" ", "").upper()
+            if len(code) != CODE_LENGTH or any(c not in "0123456789" for c in code):
+                await self.error(ws, "숫자 6자리 코드를 입력하세요.")
+                return
             room = self.rooms.get(code)
             if not room or room.host or time.monotonic() - room.created > WAIT_TTL:
                 await self.error(ws, "코드가 만료되었거나 연결할 수 없습니다.")

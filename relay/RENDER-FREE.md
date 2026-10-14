@@ -90,7 +90,7 @@ PORT는 Render가 제공합니다. Create Web Service를 눌러 배포를 기다
 | 이전 코드 접속 실패 | 서버 재시작이나 10분 만료 후 새 코드 발급 |
 | Windows 실행 경고 | 메시지를 전달. 보안 기능을 끄도록 안내하지 않음 |
 
-웹페이지·다운로드·중계 기능의 로컬 테스트 **17개**가 통과했습니다. 다운로드 테스트의 EXE 바이트는 PE 모형이며 실제 실행 가능한 EXE를 검증한 결과가 아닙니다. Windows 빌드·실제 EXE 실행·인터넷 두 PC 연결·브라우저 시각 검증은 아직 완료되지 않았습니다.
+웹페이지·다운로드·중계 기능의 로컬 테스트 **20개**가 통과했습니다. 다운로드 테스트의 EXE 바이트는 PE 모형이며 실제 실행 가능한 EXE를 검증한 결과가 아닙니다. Windows 빌드·실제 EXE 실행·인터넷 두 PC 연결·브라우저 시각 검증은 아직 완료되지 않았습니다.
 
 공식 자료:
 - https://render.com/docs/free
@@ -99,3 +99,7 @@ PORT는 Render가 제공합니다. Create Web Service를 눌러 배포를 기다
 - https://render.com/docs/environment-variables
 - https://render.com/articles/how-much-does-cloud-application-hosting-cost-for-small-businesses
 - https://docs.github.com/en/actions/reference/runners/github-hosted-runners
+
+## v0.3 SSL/TLS 수정 적용
+
+서버를 이미 만든 경우 새 서비스를 만들지 말고 **TLS-FIX.md**를 따릅니다. 윈도우 EXE를 다시 빌드한 후 `relay/downloads/JHRemoteSupport.exe`를 GitHub에서 교체하면 학생도 수정본을 받습니다.

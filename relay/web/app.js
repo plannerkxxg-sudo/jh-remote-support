@@ -5,7 +5,7 @@ const button = document.getElementById('download');
 const feedback = document.getElementById('feedback');
 const success = document.getElementById('after-download');
 input.addEventListener('input', () => {
-  input.value = input.value.toUpperCase().replace(/[^A-Z0-9\- ]/g, '');
+  input.value = input.value.replace(/[^0-9]/g, '').slice(0, 6);
   input.removeAttribute('aria-invalid');
   feedback.textContent = '';
   success.hidden = true;
@@ -13,8 +13,8 @@ input.addEventListener('input', () => {
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   const code = input.value.toUpperCase().replace(/[\s-]/g, '');
-  if (!/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{12}$/.test(code)) {
-    feedback.textContent = '전달받은 12자리 코드를 확인해주세요. 영문과 숫자를 정확히 입력하세요.';
+  if (!/^[0-9]{6}$/.test(code)) {
+    feedback.textContent = '전달받은 숫자 6자리 코드를 정확히 입력해주세요.';
     input.setAttribute('aria-invalid', 'true');
     input.focus();
     return;

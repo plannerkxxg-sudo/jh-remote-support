@@ -74,7 +74,7 @@ class HttpApp:
             except OSError:
                 return self.response(503, {"message": "접속 페이지가 준비되지 않았습니다."})
         if route.path == "/api/status":
-            return self.response(200, {"downloadReady": self.template.is_file() and bool(self.relay_url()), "version": "0.2"})
+            return self.response(200, {"downloadReady": self.template.is_file() and bool(self.relay_url()), "version": "0.4"})
         if route.path == "/download":
             ip = connection.remote_address[0]
             if self.relay.limited(self.download_attempts, ip, 10, 60):
@@ -83,8 +83,8 @@ class HttpApp:
                 now = time.monotonic()
                 self.download_attempts = defaultdict(deque, {k: v for k, v in self.download_attempts.items() if v and now - v[-1] <= 60})
             code = parse_qs(route.query).get("code", [""])[0].replace("-", "").replace(" ", "").upper()
-            if not re.fullmatch("[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{12}", code):
-                return self.response(400, {"message": "12자리 접속 코드를 정확히 입력해주세요."})
+            if not re.fullmatch("[0-9]{6}", code):
+                return self.response(400, {"message": "숫자 6자리 접속 코드를 정확히 입력해주세요."})
             room = self.relay.rooms.get(code)
             if not room or room.host or time.monotonic() - room.created > 600:
                 return self.response(404, {"message": "코드가 만료되었거나 사용 중입니다. 정현쌤에게 새 코드를 요청하세요."})
