@@ -57,10 +57,10 @@ PORT는 Render가 제공합니다. Create Web Service를 눌러 배포를 기다
 | 용도 | 주소 |
 | --- | --- |
 | 학생 웹사이트 | https://jh-remote-support-xxxx.onrender.com/ |
-| 정현쌤 프로그램 서버 주소 | wss://jh-remote-support-xxxx.onrender.com/support |
+| 프로그램 내부 접속 주소 | wss://jh-remote-support-xxxx.onrender.com/support |
 | 상태 확인 | https://jh-remote-support-xxxx.onrender.com/healthz |
 
-위 주소는 예시이며 실제 Render 주소로 바꿉니다. 학생은 서버 주소를 입력하지 않습니다.
+위 주소는 예시이며 실제 Render 주소로 바꿉니다. v0.6은 상담자가 첫 실행에서 자기 HTTPS 사이트 주소를 한 번 저장합니다. 다음부터 자동 적용되며 학생은 주소 설정을 하지 않습니다.
 
 정현쌤 프로그램에서 **코드 발급 → 안내 복사**로 학생에게 웹주소와 코드를 전달합니다. 학생은 **웹사이트에서 코드 입력 → 다운로드 → EXE 실행 → 승인** 순서로 연결합니다. 내려받은 단일 EXE에는 코드와 주소가 들어 있습니다.
 
@@ -103,3 +103,15 @@ PORT는 Render가 제공합니다. Create Web Service를 눌러 배포를 기다
 ## v0.3 SSL/TLS 수정 적용
 
 서버를 이미 만든 경우 새 서비스를 만들지 말고 **TLS-FIX.md**를 따릅니다. 윈도우 EXE를 다시 빌드한 후 `relay/downloads/JHRemoteSupport.exe`를 GitHub에서 교체하면 학생도 수정본을 받습니다.
+
+## v0.5 주소 자동 적용
+
+현재 사용자 서버 `jh-remote-support.onrender.com`을 프로그램에 고정했습니다. 주소 입력칸이 없으며 코드 발급 버튼으로 바로 시작합니다. 적용 방법은 **UPDATE-FIXED-ADDRESS.md**를 참고하세요.
+
+## v0.6 직원별 배포
+
+직원마다 자신의 GitHub·Render로 서버를 만들려면 최상위 **DISTRIBUTION.md**를 따릅니다. 자기 사이트 주소는 첫 실행에서 한 번만 저장합니다.
+
+## v0.7 직원 이름과 사이트 소개 설정
+
+프로그램 첫 설정에서 이름과 소개를 입력하면 안내 복사 링크, 사이트 제목·설명과 학생용 프로그램에 반영됩니다. 기본 사이트 주소에도 항상 같은 이름을 표시하려면 Render Environment에 `SUPPORT_NAME`과 `SUPPORT_DESCRIPTION`을 한 번 입력합니다. 새 Blueprint 배포는 두 항목을 처음에 입력받습니다. 기존 서비스에는 직접 추가합니다. 상세 순서는 **../UPDATE-PERSONAL-NAME.md**를 참고하세요.

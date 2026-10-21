@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 from websockets.datastructures import Headers
 from websockets.http11 import Response
+from branding import settings, render
 
 
 class HttpApp:
@@ -63,9 +64,22 @@ class HttpApp:
         route = urlsplit(request.path)
         if route.path == "/healthz":
             return self.response(200, "JH Remote Support Relay ready\n", "text/plain; charset=utf-8")
-        if route.path in ("/", "/style.css", "/app.js"):
+        if route.path in ("/", "/api/site"):
+            if len(route.query) > 4096:
+                return self.response(400, {"message": "안내 링크가 너무 깁니다. 담당자에게 새 안내를 요청하세요."})
+            try:
+                brand = settings(parse_qs(route.query, keep_blank_values=True, max_num_fields=8))
+            except ValueError as error:
+                return self.response(400, {"message": str(error)})
+            if route.path == "/api/site":
+                return self.response(200, brand)
+            try:
+                page = render((self.web / "index.html").read_text(encoding="utf-8"), brand)
+                return self.response(200, page, "text/html; charset=utf-8")
+            except OSError:
+                return self.response(503, {"message": "접속 페이지가 준비되지 않았습니다."})
+        if route.path in ("/style.css", "/app.js"):
             filename, mime = {
-                "/": ("index.html", "text/html; charset=utf-8"),
                 "/style.css": ("style.css", "text/css; charset=utf-8"),
                 "/app.js": ("app.js", "text/javascript; charset=utf-8"),
             }[route.path]
@@ -74,7 +88,7 @@ class HttpApp:
             except OSError:
                 return self.response(503, {"message": "접속 페이지가 준비되지 않았습니다."})
         if route.path == "/api/status":
-            return self.response(200, {"downloadReady": self.template.is_file() and bool(self.relay_url()), "version": "0.4"})
+            return self.response(200, {"downloadReady": self.template.is_file() and bool(self.relay_url()), "version": "0.7"})
         if route.path == "/download":
             ip = connection.remote_address[0]
             if self.relay.limited(self.download_attempts, ip, 10, 60):
@@ -87,17 +101,19 @@ class HttpApp:
                 return self.response(400, {"message": "숫자 6자리 접속 코드를 정확히 입력해주세요."})
             room = self.relay.rooms.get(code)
             if not room or room.host or time.monotonic() - room.created > 600:
-                return self.response(404, {"message": "코드가 만료되었거나 사용 중입니다. 정현쌤에게 새 코드를 요청하세요."})
+                return self.response(404, {"message": "코드가 만료되었거나 사용 중입니다. 담당자에게 새 코드를 요청하세요."})
             url = self.relay_url()
             if not url:
-                return self.response(503, {"message": "접속 설정이 준비되지 않았습니다. 정현쌤에게 알려주세요."})
+                return self.response(503, {"message": "접속 설정이 준비되지 않았습니다. 담당자에게 알려주세요."})
             try:
                 binary = self.template.read_bytes()
             except OSError:
-                return self.response(503, {"message": "지원 프로그램 배포를 준비 중입니다. 정현쌤에게 알려주세요."})
+                return self.response(503, {"message": "지원 프로그램 배포를 준비 중입니다. 담당자에게 알려주세요."})
             if not self.is_pe(binary):
-                return self.response(503, {"message": "지원 프로그램을 확인하지 못했습니다. 정현쌤에게 알려주세요."})
-            profile = json.dumps({"relayUrl": url, "code": code, "mode": "host"}, ensure_ascii=False).encode("utf-8")
+                return self.response(503, {"message": "지원 프로그램을 확인하지 못했습니다. 담당자에게 알려주세요."})
+            profile = json.dumps({"relayUrl": url, "code": code, "mode": "host",
+                                  "displayName": room.name, "description": room.description},
+                                 ensure_ascii=False).encode("utf-8")
             data = binary + profile + struct.pack("<I", len(profile)) + self.MARKER
             return self.response(200, data, "application/octet-stream", {
                 "Content-Disposition": 'attachment; filename="JHSupport-' + code + '.exe"',

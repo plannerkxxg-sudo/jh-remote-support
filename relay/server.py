@@ -11,6 +11,7 @@ from http import HTTPStatus
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
 from webapp import HttpApp
+from branding import clean_text
 
 CODE_LENGTH = 6
 WAIT_TTL = 600
@@ -38,6 +39,7 @@ class Room:
     host: object = None
     pending_at: float = 0
     active: bool = False
+    description: str = ""
 
 
 class Relay:
@@ -116,8 +118,12 @@ class Relay:
             if not isinstance(name, str) or not name.strip() or len(name) > 40:
                 await self.error(ws, "지원자 이름을 1~40자로 입력하세요.")
                 return
-            name = "".join(c for c in name.strip() if c.isprintable())
-            room = Room(code, ws, time.monotonic(), name)
+            name = clean_text(name, 40)
+            description = clean_text(msg.get("description", ""), 200)
+            if not name or description is None:
+                await self.error(ws, "지원자 이름과 소개 문구를 확인하세요. 소개 문구는 200자 이내입니다.")
+                return
+            room = Room(code, ws, time.monotonic(), name, description=description)
             self.rooms[code] = room
             self.members[ws] = (room, "supporter")
             await self.send(ws, {"type": "created", "code": code, "expires": WAIT_TTL})

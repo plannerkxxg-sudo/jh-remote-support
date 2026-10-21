@@ -38,7 +38,7 @@ form.addEventListener('submit', async (event) => {
       throw new Error('다운로드 응답을 확인하지 못했습니다. 잠시 후 다시 시도해주세요.');
     }
     const blob = await response.blob();
-    if (blob.size < 1000 || blob.size > 2000000) throw new Error('실행파일을 확인하지 못했습니다. 정현쌤에게 알려주세요.');
+    if (blob.size < 1000 || blob.size > 2000000) throw new Error('실행파일을 확인하지 못했습니다. 담당자에게 알려주세요.');
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
