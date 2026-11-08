@@ -64,11 +64,11 @@ class SignedUpdateTests(unittest.TestCase):
 
     def test_install_preserves_employee_settings_and_rollbacks_rejected(self):
         (self.root/'relay').mkdir()
-        (self.root/'relay/.env').write_text('SUPPORT_NAME=아진쌤\n')
-        (self.root/'settings.json').write_text('민주쌤 사용자 설정')
+        (self.root/'relay/.env').write_text('SUPPORT_NAME=아진쌤\n',encoding='utf-8')
+        (self.root/'settings.json').write_text('민주쌤 사용자 설정',encoding='utf-8')
         self.assertTrue(sync_release.install(self.root,self.envelope,self.archive,self.key))
-        self.assertEqual((self.root/'relay/.env').read_text(),'SUPPORT_NAME=아진쌤\n')
-        self.assertEqual((self.root/'settings.json').read_text(),'민주쌤 사용자 설정')
+        self.assertEqual((self.root/'relay/.env').read_text(encoding='utf-8'),'SUPPORT_NAME=아진쌤\n')
+        self.assertEqual((self.root/'settings.json').read_text(encoding='utf-8'),'민주쌤 사용자 설정')
         self.assertFalse(sync_release.install(self.root,self.envelope,self.archive,self.key))
         state=self.root/'updates/installed-release.json'
         value=json.loads(state.read_text());value['version']='0.11.0.0';state.write_text(json.dumps(value))
