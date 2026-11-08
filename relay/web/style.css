@@ -2,3 +2,5 @@
 
 /* Teacher names and introductions are user-editable plain text. */
 .brand{min-width:0;max-width:75%;overflow-wrap:anywhere}.brand>span:last-child{min-width:0}.mark,.os{flex-shrink:0}.lead,.card-description,.help,.faq p,footer{overflow-wrap:anywhere}
+
+#file-info{margin-top:18px;font-size:12px;color:var(--muted);line-height:1.7}#file-info p{overflow-wrap:anywhere}#file-info[hidden]{display:none}

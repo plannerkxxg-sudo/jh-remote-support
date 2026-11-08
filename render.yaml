@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: jh-remote-support
+    runtime: python
+    plan: free
+    region: singapore
+    rootDir: relay
+    buildCommand: pip install -r requirements.txt
+    startCommand: python server.py
+    healthCheckPath: /healthz
+    autoDeployTrigger: commit
+    envVars:
+      - key: BIND_HOST
+        value: 0.0.0.0
+      # First Blueprint deployment asks each teacher for their own site text.
+      - key: SUPPORT_NAME
+        sync: false
+      - key: SUPPORT_DESCRIPTION
+        sync: false

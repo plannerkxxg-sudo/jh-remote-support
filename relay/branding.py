@@ -34,7 +34,8 @@ def render(template, brand):
     values = {
         "SITE_TITLE": brand["title"], "SUPPORT_NAME": owner,
         "SITE_DESCRIPTION": brand["description"], "SITE_HOME": home,
+        "GOOGLE_SITE_VERIFICATION": clean_text(os.getenv("GOOGLE_SITE_VERIFICATION", ""), 256) or "",
     }
     # Single substitution pass: user-provided template-like text stays plain text.
-    return re.sub(r"\{\{(SITE_TITLE|SUPPORT_NAME|SITE_DESCRIPTION|SITE_HOME)\}\}",
+    return re.sub(r"\{\{(SITE_TITLE|SUPPORT_NAME|SITE_DESCRIPTION|SITE_HOME|GOOGLE_SITE_VERIFICATION)\}\}",
                   lambda match: html.escape(values[match.group(1)], quote=True), template)

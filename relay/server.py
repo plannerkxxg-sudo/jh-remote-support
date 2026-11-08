@@ -144,7 +144,7 @@ class Relay:
             room.pending_at = time.monotonic()
             self.members[ws] = (room, "host")
             await self.send(room.supporter, {"type": "waiting"})
-            await self.send(ws, {"type": "request", "name": room.name})
+            await self.send(ws, {"type": "request", "name": room.name, "description": room.description})
         elif kind == "accept" and member and member[1] == "host":
             room = member[0]
             if room.host and not room.active:

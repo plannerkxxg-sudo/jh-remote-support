@@ -4,11 +4,15 @@ const input = document.getElementById('support-code');
 const button = document.getElementById('download');
 const feedback = document.getElementById('feedback');
 const success = document.getElementById('after-download');
+const fileInfo = document.getElementById('file-info');
+const fileName = document.getElementById('file-name');
+const fileHash = document.getElementById('file-hash');
 input.addEventListener('input', () => {
   input.value = input.value.replace(/[^0-9]/g, '').slice(0, 6);
   input.removeAttribute('aria-invalid');
   feedback.textContent = '';
   success.hidden = true;
+  fileInfo.hidden = true;
 });
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -26,7 +30,7 @@ form.addEventListener('submit', async (event) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
-    const response = await fetch('/download?code=' + encodeURIComponent(code), {
+    const response = await fetch('/api/download-info?code=' + encodeURIComponent(code), {
       cache: 'no-store', credentials: 'omit', signal: controller.signal, referrerPolicy: 'no-referrer'
     });
     if (!response.ok) {
@@ -34,20 +38,30 @@ form.addEventListener('submit', async (event) => {
       try { error = await response.json(); } catch { error = {}; }
       throw new Error(error.message || '파일을 준비하지 못했습니다. 잠시 후 다시 시도해주세요.');
     }
-    if (!response.headers.get('Content-Type')?.includes('application/octet-stream')) {
+    if (!response.headers.get('Content-Type')?.includes('application/json')) {
       throw new Error('다운로드 응답을 확인하지 못했습니다. 잠시 후 다시 시도해주세요.');
     }
-    const blob = await response.blob();
-    if (blob.size < 1000 || blob.size > 2000000) throw new Error('실행파일을 확인하지 못했습니다. 담당자에게 알려주세요.');
-    const url = URL.createObjectURL(blob);
+    const info = await response.json();
+    if (info.version !== '0.10' || !/^[a-f0-9]{64}$/.test(info.sha256)
+        || !/^[A-Za-z0-9.~-]+\.exe$/.test(info.filename)
+        || !info.filename.startsWith('JHSupport-' + code + '-')
+        || info.size < 1024 || info.size > 1500000
+        || info.downloadUrl !== '/download?code=' + code) {
+      throw new Error('배포 파일 정보를 확인하지 못했습니다. 담당자에게 알려주세요.');
+    }
+    fileName.textContent = info.filename;
+    fileHash.textContent = info.sha256;
+    fileInfo.hidden = false;
+    // A normal same-origin HTTPS attachment. The browser retains its download checks.
     const link = document.createElement('a');
-    link.href = url;
-    link.download = 'JHSupport-' + code + '.exe';
+    link.href = info.downloadUrl;
+    link.download = info.filename;
+    link.rel = 'noreferrer';
     document.body.appendChild(link);
     link.click();
     link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
     success.hidden = false;
+    feedback.textContent = '다운로드를 요청했습니다. 완료 여부는 브라우저 다운로드 목록에서 확인하세요.';
     success.scrollIntoView({ behavior: 'auto', block: 'nearest' });
   } catch (error) {
     feedback.textContent = error.name === 'AbortError'
