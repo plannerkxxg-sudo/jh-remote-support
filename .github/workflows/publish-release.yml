@@ -23,7 +23,7 @@ jobs:
         shell: pwsh
         run: |
           $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
-          & $compiler /nologo /target:winexe /win32manifest:client/JHRemoteSupport.manifest /platform:anycpu /optimize+ /codepage:65001 /out:relay/downloads/JHRemoteSupport.exe /reference:System.dll /reference:System.Core.dll /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll client/RemoteSupport.cs client/ManagedWebSocket.cs client/RuntimeRequirements.cs client/AutoUpdater.cs client/UpdateTrust.cs
+          & $compiler /nologo /target:winexe /win32manifest:client\JHRemoteSupport.manifest /platform:anycpu /optimize+ /codepage:65001 /out:relay\downloads\JHRemoteSupport.exe /reference:System.dll /reference:System.Core.dll /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll client\RemoteSupport.cs client\ManagedWebSocket.cs client\RuntimeRequirements.cs client\AutoUpdater.cs client\UpdateTrust.cs
           if ($LASTEXITCODE -ne 0) { throw 'Compilation failed' }
           $base = Join-Path (Get-Location) 'relay/downloads/JHRemoteSupport.exe'
           foreach ($mode in @('--verify-network-policy','--verify-setup')) {
@@ -35,9 +35,9 @@ jobs:
             throw 'Update release-version.txt and the client assembly version together.'
           }
           (Get-FileHash -Algorithm SHA256 $base).Hash.ToLowerInvariant() | Set-Content relay/downloads/JHRemoteSupport.sha256.txt
-          & $compiler /nologo /target:exe /out:TransportHarness.exe /reference:System.dll /reference:System.Core.dll /reference:System.Web.Extensions.dll client/ManagedWebSocket.cs client/RuntimeRequirements.cs tests/TransportHarness.cs
+          & $compiler /nologo /target:exe /out:TransportHarness.exe /reference:System.dll /reference:System.Core.dll /reference:System.Web.Extensions.dll client\ManagedWebSocket.cs client\RuntimeRequirements.cs tests\TransportHarness.cs
           if ($LASTEXITCODE -ne 0) { throw 'Transport test harness compilation failed' }
-          & $compiler /nologo /target:exe /out:UpdateHarness.exe /reference:System.dll /reference:System.Core.dll /reference:System.Web.Extensions.dll client/AutoUpdater.cs client/UpdateTrust.cs tests/UpdateHarness.cs
+          & $compiler /nologo /target:exe /out:UpdateHarness.exe /reference:System.dll /reference:System.Core.dll /reference:System.Web.Extensions.dll client\AutoUpdater.cs client\UpdateTrust.cs tests\UpdateHarness.cs
           if ($LASTEXITCODE -ne 0) { throw 'Updater test harness compilation failed' }
       - name: Verify server and transport behavior
         shell: pwsh
