@@ -1,0 +1,52 @@
+name: Receive shared remote support updates
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17,47 * * * *'
+permissions:
+  contents: write
+concurrency:
+  group: shared-remote-update
+  cancel-in-progress: false
+jobs:
+  sync:
+    if: github.repository != 'plannerkxxg-sudo/jh-remote-support'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check one-time setup
+        env:
+          SITE: ${{ vars.SUPPORT_SITE_URL }}
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          test -n "$SITE" || { echo 'Set SUPPORT_SITE_URL repository variable.'; exit 1; }
+          test -n "$HOOK" || { echo 'Set RENDER_DEPLOY_HOOK_URL repository secret.'; exit 1; }
+      - name: Verify and receive published files
+        run: python scripts/sync_release.py
+      - name: Save verified server update
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add relay/server.py relay/webapp.py relay/branding.py relay/requirements.txt relay/Dockerfile relay/release-version.json relay/web/index.html relay/web/app.js relay/web/style.css relay/downloads/JHRemoteSupport.exe relay/downloads/JHRemoteSupport.sha256.txt updates/installed-release.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'Apply verified remote support release'
+            git push
+          fi
+      - name: Deploy when idle and confirm the live download hash
+        env:
+          SUPPORT_SITE_URL: ${{ vars.SUPPORT_SITE_URL }}
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: python scripts/deploy_release.py
+      - name: Record confirmed deployment
+        run: |
+          if [ -f updates/deploy-confirmed.json ]; then
+            git add updates/deploy-confirmed.json
+            if ! git diff --cached --quiet; then
+              git commit -m 'Record confirmed remote support deployment'
+              git push
+            fi
+          fi
