@@ -1,0 +1,77 @@
+name: Build Windows remote support client
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'client/**'
+      - '.github/workflows/build-windows.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile native Windows client
+        shell: pwsh
+        run: |
+          $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+          New-Item -ItemType Directory -Force relay/downloads | Out-Null
+          & $compiler /nologo /target:winexe /win32manifest:client/JHRemoteSupport.manifest /platform:anycpu /optimize+ /codepage:65001 /out:relay/downloads/JHRemoteSupport.exe /reference:System.dll /reference:System.Core.dll /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll client/RemoteSupport.cs client/ManagedWebSocket.cs client/RuntimeRequirements.cs client/AutoUpdater.cs client/UpdateTrust.cs
+          if ($LASTEXITCODE -ne 0) { throw 'C# compilation failed' }
+      - name: Verify TLS, consent setup, and immutable download profiles
+        shell: pwsh
+        run: |
+          $base = Join-Path (Get-Location) 'relay/downloads/JHRemoteSupport.exe'
+          $binary = [IO.File]::ReadAllBytes($base)
+          $tls = Start-Process -FilePath $base -ArgumentList '--verify-network-policy' -Wait -PassThru
+          if ($tls.ExitCode -ne 0) { throw 'Modern OS-default TLS policy is not active' }
+          $setup = Start-Process -FilePath $base -ArgumentList '--verify-setup' -Wait -PassThru
+          if ($setup.ExitCode -ne 0) { throw 'Per-user connection setup and teacher branding validation failed' }
+          foreach ($name in @('JHSupport-000007-tls-example.com.exe', 'JHSupport-000007-tls-example.com (2).exe', 'JHSupport-123456-local-127.0.0.1~8765.exe')) {
+            $target = Join-Path $env:RUNNER_TEMP $name
+            [IO.File]::WriteAllBytes($target, $binary)
+            $process = Start-Process -FilePath $target -ArgumentList '--verify-profile' -Wait -PassThru
+            if ($process.ExitCode -ne 0) { throw 'Stable EXE filename profile verification failed' }
+            if ((Get-FileHash $base).Hash -ne (Get-FileHash $target).Hash) { throw 'Download EXE bytes were modified' }
+          }
+          if ([Text.Encoding]::Unicode.GetString($binary).IndexOf('JH_STABLE_DOWNLOAD_V1') -lt 0 -and
+              [Text.Encoding]::Unicode.GetString($binary, 1, $binary.Length - 1).IndexOf('JH_STABLE_DOWNLOAD_V1') -lt 0) {
+            throw 'Stable release marker missing'
+          }
+          $plain = Start-Process -FilePath $base -ArgumentList '--verify-profile' -Wait -PassThru
+          if ($plain.ExitCode -ne 1) { throw 'Template must not contain a session code' }
+          (Get-FileHash -Algorithm SHA256 $base).Hash.ToLowerInvariant() | Set-Content relay/downloads/JHRemoteSupport.sha256.txt
+          $assembly = [Reflection.Assembly]::LoadFile($base)
+          $inputType = $assembly.GetType('JHSupport.Native+INPUT', $true)
+          if ([Runtime.InteropServices.Marshal]::SizeOf($inputType) -ne 40) { throw 'Unexpected x64 INPUT layout' }
+      - name: Compile transport test harness
+        shell: pwsh
+        run: |
+          $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+          & $compiler /nologo /target:exe /out:TransportHarness.exe /reference:System.dll /reference:System.Core.dll /reference:System.Web.Extensions.dll client/ManagedWebSocket.cs client/RuntimeRequirements.cs tests/TransportHarness.cs
+          if ($LASTEXITCODE -ne 0) { throw 'Test harness compilation failed' }
+          & $compiler /nologo /target:exe /out:UpdateHarness.exe /reference:System.dll /reference:System.Core.dll /reference:System.Web.Extensions.dll client/AutoUpdater.cs client/UpdateTrust.cs tests/UpdateHarness.cs
+          if ($LASTEXITCODE -ne 0) { throw 'Updater test harness compilation failed' }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test actual C# transport and relay
+        shell: pwsh
+        run: |
+          python -m pip install -r relay/requirements.txt
+          $env:JH_TRANSPORT_COMMAND = ConvertTo-Json -Compress -InputObject @((Join-Path (Get-Location) 'TransportHarness.exe'))
+          if (Test-Path 'C:\Program Files\Git\usr\bin') { $env:PATH += ';C:\Program Files\Git\usr\bin' }
+          $env:JH_UPDATE_COMMAND = ConvertTo-Json -Compress -InputObject @((Join-Path (Get-Location) 'UpdateHarness.exe'))
+          python -m unittest discover -s tests -q
+          if ($LASTEXITCODE -ne 0) { throw 'Transport or relay tests failed' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: JHRemoteSupport-Windows
+          path: |
+            relay/downloads/JHRemoteSupport.exe
+            relay/downloads/JHRemoteSupport.sha256.txt
