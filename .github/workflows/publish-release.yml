@@ -1,0 +1,70 @@
+name: Publish verified shared update
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'updates/release-version.txt'
+permissions:
+  contents: write
+concurrency:
+  group: publish-remote-support
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.repository == 'plannerkxxg-sudo/jh-remote-support' && github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile and check native Windows client
+        shell: pwsh
+        run: |
+          $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
+          & $compiler /nologo /target:winexe /win32manifest:client/JHRemoteSupport.manifest /platform:anycpu /optimize+ /codepage:65001 /out:relay/downloads/JHRemoteSupport.exe /reference:System.dll /reference:System.Core.dll /reference:System.Windows.Forms.dll /reference:System.Drawing.dll /reference:System.Web.Extensions.dll client/RemoteSupport.cs client/ManagedWebSocket.cs client/RuntimeRequirements.cs client/AutoUpdater.cs client/UpdateTrust.cs
+          if ($LASTEXITCODE -ne 0) { throw 'Compilation failed' }
+          $base = Join-Path (Get-Location) 'relay/downloads/JHRemoteSupport.exe'
+          foreach ($mode in @('--verify-network-policy','--verify-setup')) {
+            $p = Start-Process -FilePath $base -ArgumentList $mode -Wait -PassThru
+            if ($p.ExitCode -ne 0) { throw 'Client self-check failed' }
+          }
+          $version = (Get-Content updates/release-version.txt -Raw).Trim()
+          if ([Reflection.AssemblyName]::GetAssemblyName($base).Version.ToString() -ne $version) {
+            throw 'Update release-version.txt and the client assembly version together.'
+          }
+          (Get-FileHash -Algorithm SHA256 $base).Hash.ToLowerInvariant() | Set-Content relay/downloads/JHRemoteSupport.sha256.txt
+          & $compiler /nologo /target:exe /out:TransportHarness.exe /reference:System.dll /reference:System.Core.dll /reference:System.Web.Extensions.dll client/ManagedWebSocket.cs client/RuntimeRequirements.cs tests/TransportHarness.cs
+          if ($LASTEXITCODE -ne 0) { throw 'Transport test harness compilation failed' }
+          & $compiler /nologo /target:exe /out:UpdateHarness.exe /reference:System.dll /reference:System.Core.dll /reference:System.Web.Extensions.dll client/AutoUpdater.cs client/UpdateTrust.cs tests/UpdateHarness.cs
+          if ($LASTEXITCODE -ne 0) { throw 'Updater test harness compilation failed' }
+      - name: Verify server and transport behavior
+        shell: pwsh
+        run: |
+          python -m pip install -r relay/requirements.txt
+          $env:JH_TRANSPORT_COMMAND = ConvertTo-Json -Compress -InputObject @((Join-Path (Get-Location) 'TransportHarness.exe'))
+          if (Test-Path 'C:\Program Files\Git\usr\bin') { $env:PATH += ';C:\Program Files\Git\usr\bin' }
+          $env:JH_UPDATE_COMMAND = ConvertTo-Json -Compress -InputObject @((Join-Path (Get-Location) 'UpdateHarness.exe'))
+          python -m unittest discover -s tests -q
+          if ($LASTEXITCODE -ne 0) { throw 'Release checks failed' }
+      - name: Prepare and sign immutable release assets
+        shell: pwsh
+        env:
+          JH_UPDATE_SIGNING_KEY_B64: ${{ secrets.JH_UPDATE_SIGNING_KEY_B64 }}
+        run: |
+          $version = (Get-Content updates/release-version.txt -Raw).Trim()
+          python scripts/build_release.py --version $version --out release-out
+          if ($LASTEXITCODE -ne 0) { throw 'Release packaging failed' }
+          powershell -NoProfile -NonInteractive -File scripts/SignManifest.ps1 -PayloadPath release-out/update-payload.json -OutputPath release-out/update-manifest.json
+          if ($LASTEXITCODE -ne 0) { throw 'Release signing failed' }
+          "JH_RELEASE_TAG=v$version" >> $env:GITHUB_ENV
+      - name: Publish a new immutable version
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view $env:JH_RELEASE_TAG *> $null
+          if ($LASTEXITCODE -eq 0) { throw 'This version already exists. Never overwrite published release assets; use a new version.' }
+          gh release create $env:JH_RELEASE_TAG release-out/JHRemoteSupport.exe release-out/relay-update.zip release-out/update-manifest.json --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Remote Support $env:JH_RELEASE_TAG" --notes 'Verified shared remote support update.' --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed' }
